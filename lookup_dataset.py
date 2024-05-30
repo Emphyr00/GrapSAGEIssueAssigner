@@ -14,11 +14,11 @@ def load_and_inspect_csv(file_path):
     pd.set_option('display.max_colwidth', None) # Display the full content of each column
 
     # Print a random row from the DataFrame
-    random_row = df.sample(n=1)  # n=1 specifies that we want one random sample
+    random_row = df.sample(n=5)  # n=1 specifies that we want one random sample
     print("\nRandom Row from the Dataset:")
     print(random_row)
 
 # Example usage
 if __name__ == "__main__":
-    file_path = 'dataset_content.csv'  # Update this to the path of your dataset
+    file_path = 'dataset_small_content.csv'  # Update this to the path of your dataset
     load_and_inspect_csv(file_path)

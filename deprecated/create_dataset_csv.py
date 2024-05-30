@@ -20,5 +20,5 @@ def read_and_merge_parquet(directory_path, output_csv_file):
 # Example usage
 if __name__ == "__main__":
     directory_path = 'dataset'  # Update this to the path of your directory
-    output_csv_file = 'dataset.csv'  # Name of the output CSV file
+    output_csv_file = 'dataset_small.csv'  # Name of the output CSV file
     read_and_merge_parquet(directory_path, output_csv_file)
