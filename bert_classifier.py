@@ -17,6 +17,10 @@ class CustomDataset(Dataset):
     def __init__(self, encodings, labels):
         self.encodings = encodings
         self.labels = labels
+        print('Enc' + str(len(encodings['input_ids'])))
+        print('Lab' + str(len(labels)))
+        assert len(encodings['input_ids']) == len(labels), "Encodings and labels must have the same length"
+        print(f"Dataset size: {len(self.labels)}")
 
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
@@ -37,11 +41,35 @@ def preprocess_data(df):
     # Encode the class labels
     label_encoder = LabelEncoder()
     df['class_label'] = label_encoder.fit_transform(df['class'])
+    print(df['class_label'].isnull().sum())
     return df, label_encoder
 
 def tokenize_data(texts, tokenizer):
     """Tokenize the text data using BERT tokenizer."""
-    return tokenizer(texts.tolist(), truncation=True, padding=True, max_length=512)
+    # Ensure there are no NaN values and convert to list of strings
+    texts = texts.dropna().tolist()
+    
+    # Ensure all elements are strings
+    texts = [str(text) for text in texts]
+    
+    # Tokenize
+    encodings = tokenizer(texts, truncation=True, padding=True, max_length=512)
+    
+    # Debugging
+    print(f"Total texts: {len(texts)}, Total encodings: {len(encodings['input_ids'])}")
+    
+    # Check for discrepancies and handle them
+    if len(texts) != len(encodings['input_ids']):
+        print("Discrepancy found between texts and encodings.")
+        valid_texts = []
+        for i, (text, encoding) in enumerate(zip(texts, encodings['input_ids'])):
+            if len(encoding) > 0:
+                valid_texts.append(text)
+            else:
+                print(f"Problematic text {i}: {text}")
+        encodings = tokenizer(valid_texts, truncation=True, padding=True, max_length=512)
+    
+    return encodings
 
 def train(model, train_loader, val_loader, epochs=3):
     """Train the BERT model."""
@@ -122,6 +150,8 @@ def main(input_csv, output_dir, epochs=3):
     # Split the data into training, validation, and test sets
     train_df, temp_df = train_test_split(df, test_size=0.3, random_state=42)
     val_df, test_df = train_test_split(temp_df, test_size=0.5, random_state=42)
+    
+    print(f"Train size: {len(train_df)}, Validation size: {len(val_df)}, Test size: {len(test_df)}")
 
     # Initialize the tokenizer
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -130,11 +160,13 @@ def main(input_csv, output_dir, epochs=3):
     train_encodings = tokenize_data(train_df['extracted_content'], tokenizer)
     val_encodings = tokenize_data(val_df['extracted_content'], tokenizer)
     test_encodings = tokenize_data(test_df['extracted_content'], tokenizer)
+    
+    print(f"Train encodings size: {len(train_encodings['input_ids'])}, Validation encodings size: {len(val_encodings['input_ids'])}, Test encodings size: {len(test_encodings['input_ids'])}")
 
     # Create datasets
-    train_dataset = CustomDataset(train_encodings, train_df['class_label'].values)
-    val_dataset = CustomDataset(val_encodings, val_df['class_label'].values)
-    test_dataset = CustomDataset(test_encodings, test_df['class_label'].values)
+    train_dataset = CustomDataset(train_encodings, train_df['class_label'].values[:len(train_encodings['input_ids'])])
+    val_dataset = CustomDataset(val_encodings, val_df['class_label'].values[:len(val_encodings['input_ids'])])
+    test_dataset = CustomDataset(test_encodings, test_df['class_label'].values[:len(test_encodings['input_ids'])])
 
     # Create data loaders
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
@@ -159,5 +191,5 @@ def main(input_csv, output_dir, epochs=3):
 
 if __name__ == "__main__":
     input_csv = 'dataset_small_only_classed.csv'  # Path to the CSV file with classed rows
-    output_dir = 'bert_model'  # Directory to save the trained model and tokenizer
+    output_dir = 'bert_model_2'  # Directory to save the trained model and tokenizer
     main(input_csv, output_dir, epochs=3)
