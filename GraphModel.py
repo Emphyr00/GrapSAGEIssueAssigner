@@ -72,7 +72,7 @@ def train_and_test(file_path):
     data = split_data(data)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = GraphSAGE(data.num_features, 256, 64, len(data.y.unique())).to(device)
+    model = GraphSAGE(data.num_features, 256, 32, len(data.y.unique())).to(device)
 
     # Move data to device
     data = data.to(device)
@@ -83,8 +83,8 @@ def train_and_test(file_path):
     data.val_mask = data.val_mask.to(device)
     data.test_mask = data.test_mask.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=5e-4)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=50, verbose=True)
 
     def train():
         model.train()

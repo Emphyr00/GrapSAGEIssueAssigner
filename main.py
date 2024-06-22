@@ -1,6 +1,7 @@
 # from DatasetParser import DatasetParser
 # from bert_classifier import main
-from GraphParser import GraphParser
+# from GraphParser import GraphParser
+from GraphModel import train_and_test
 
 # parser = DatasetParser('dataset', 'dataset_final2.csv')
 # parser.read_and_merge_parquet(1, 128, 256)
@@ -22,4 +23,5 @@ from GraphParser import GraphParser
 
 
 # main('dataset_001_classed.csv', '001_bert', 20)
-GraphParser.main('dataset_final2_classes_pruned.csv');
+# GraphParser.main('dataset_final2_classes_pruned.csv');
+train_and_test('keyword_graph_final.gml')
