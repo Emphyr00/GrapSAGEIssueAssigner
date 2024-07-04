@@ -21,11 +21,13 @@ fasttext.util.download_model('en', if_exists='ignore')
 fasttext_model = fasttext.load_model('cc.en.300.bin')
 
 class DatasetParser:
-    def __init__(self, directory_path, output_csv):
+    def __init__(self, directory_path, output_csv, repo_size_threshold=50, num_repos_to_include=50):
         self.directory_path = directory_path
         self.output_csv = output_csv
         self.df = None
         self.guess = Guess()
+        self.repo_size_threshold = repo_size_threshold
+        self.num_repos_to_include = num_repos_to_include
 
     def create_csv(self, output_file=None):
         self.df.to_csv(output_file or self.output_csv, index=False, escapechar='\\')
@@ -34,7 +36,7 @@ class DatasetParser:
     def get_df(self):
         return self.df
 
-    def read_and_merge_parquet(self, size=1.0, repo_count_lower_threshold=15, repo_count_upper_threshold=100):
+    def read_and_merge_parquet(self, size=1.0):
         print('read_and_merge_parquet')
         data_frames = []
         
@@ -53,19 +55,19 @@ class DatasetParser:
                 data_frames.append(df)
 
         self.df = pd.concat(data_frames, ignore_index=True)
-        self.filter_repos_by_count(repo_count_lower_threshold, repo_count_upper_threshold)
+        self.filter_repos_by_count()
         return self
 
-    def filter_repos_by_count(self, lower_threshold, upper_threshold):
+    def filter_repos_by_count(self):
         repo_counts = self.df['repo'].value_counts()
-        filtered_repos = repo_counts[(repo_counts >= lower_threshold) & (repo_counts <= upper_threshold)].index
+        filtered_repos = repo_counts[repo_counts >= self.repo_size_threshold].index
         self.df = self.df[self.df['repo'].isin(filtered_repos)]
-        self.print_unique_repo_counts(lower_threshold, upper_threshold)
+        self.print_unique_repo_counts()
 
-    def print_unique_repo_counts(self, lower_threshold, upper_threshold):
+    def print_unique_repo_counts(self):
         print("Unique repo values with their counts (sorted by number of samples, descending):")
         repo_counts = self.df['repo'].value_counts().sort_values(ascending=False)
-        filtered_repo_counts = repo_counts[(repo_counts >= lower_threshold) & (repo_counts <= upper_threshold)]
+        filtered_repo_counts = repo_counts[repo_counts >= self.repo_size_threshold]
         for repo, count in filtered_repo_counts.items():
             print(f"{repo}: {count}")
 
@@ -187,28 +189,12 @@ class DatasetParser:
 
         self.df['class'] = self.df['keywords'].apply(find_class)
 
-    def extract_classes(self, top_n=10, top_n_repos=50):
+    def extract_classes(self, top_n=10):
         print('extract_classes')
         relevant_classes = self.find_top_classes(top_n)
         self.add_class_column(relevant_classes)
         print(relevant_classes)
-        self.select_repos_with_most_class_keywords(relevant_classes, top_n_repos)
         return self
-
-    def select_repos_with_most_class_keywords(self, relevant_classes, top_n_repos=50):
-        # Count the number of relevant class keywords for each repo
-        self.df['relevant_class_count'] = self.df.apply(
-            lambda row: sum(1 for keyword in row['keywords'] if keyword in relevant_classes),
-            axis=1
-        )
-        # Sum the relevant class counts for each repo
-        repo_relevant_class_counts = self.df.groupby('repo')['relevant_class_count'].sum()
-        # Select the top repos with the highest number of relevant class keywords
-        top_repos = repo_relevant_class_counts.sort_values(ascending=False).head(top_n_repos).index
-        # Filter the DataFrame to include only the selected repos
-        self.df = self.df[self.df['repo'].isin(top_repos)]
-        print("Selected repos with the most relevant class keywords:")
-        self.print_unique_repo_counts(0, float('inf'))
 
     def filter_by_class(self):
         self.df = self.df[self.df['class'].notnull()]
