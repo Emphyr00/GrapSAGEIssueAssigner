@@ -21,13 +21,12 @@ fasttext.util.download_model('en', if_exists='ignore')
 fasttext_model = fasttext.load_model('cc.en.300.bin')
 
 class DatasetParser:
-    def __init__(self, directory_path, output_csv, repo_size_threshold=50, num_repos_to_include=50):
+    def __init__(self, directory_path, output_csv, thresholds):
         self.directory_path = directory_path
         self.output_csv = output_csv
         self.df = None
         self.guess = Guess()
-        self.repo_size_threshold = repo_size_threshold
-        self.num_repos_to_include = num_repos_to_include
+        self.thresholds = thresholds  # List of arrays [number, lower_threshold, upper_threshold]
 
     def create_csv(self, output_file=None):
         self.df.to_csv(output_file or self.output_csv, index=False, escapechar='\\')
@@ -55,20 +54,33 @@ class DatasetParser:
                 data_frames.append(df)
 
         self.df = pd.concat(data_frames, ignore_index=True)
-        self.filter_repos_by_count()
+        self.filter_repos_by_thresholds()
         return self
 
-    def filter_repos_by_count(self):
-        repo_counts = self.df['repo'].value_counts()
-        filtered_repos = repo_counts[repo_counts >= self.repo_size_threshold].index
-        self.df = self.df[self.df['repo'].isin(filtered_repos)]
+    def filter_repos_by_thresholds(self):
+        all_filtered_dfs = []
+
+        for number, lower_threshold, upper_threshold in self.thresholds:
+            repo_counts = self.df['repo'].value_counts()
+            filtered_repos = repo_counts[(repo_counts >= lower_threshold) & (repo_counts <= upper_threshold)].index
+            filtered_df = self.df[self.df['repo'].isin(filtered_repos)]
+
+            # Randomly select the specified number of repositories
+            if len(filtered_repos) > number:
+                selected_repos = filtered_repos.to_series().sample(n=number, random_state=42).index
+            else:
+                selected_repos = filtered_repos
+
+            filtered_df = filtered_df[filtered_df['repo'].isin(selected_repos)]
+            all_filtered_dfs.append(filtered_df)
+
+        self.df = pd.concat(all_filtered_dfs, ignore_index=True)
         self.print_unique_repo_counts()
 
     def print_unique_repo_counts(self):
         print("Unique repo values with their counts (sorted by number of samples, descending):")
         repo_counts = self.df['repo'].value_counts().sort_values(ascending=False)
-        filtered_repo_counts = repo_counts[repo_counts >= self.repo_size_threshold]
-        for repo, count in filtered_repo_counts.items():
+        for repo, count in repo_counts.items():
             print(f"{repo}: {count}")
 
     def clean_and_extract_content(self, text):

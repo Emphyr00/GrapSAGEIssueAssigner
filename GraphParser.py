@@ -66,7 +66,7 @@ class GraphParser:
 
             # Add node with all keywords as features and numeric label
             GraphParser.graph.add_node(index, repo_label=label, label=label, keywords=keywords)
-            print(f"Added node: {index} with label: {label} and keywords: {keywords}")
+            # print(f"Added node: {index} with label: {label} and keywords: {keywords}")
 
             for other_index, other_row in GraphParser.df.iterrows():
                 if index >= other_index:
@@ -80,10 +80,10 @@ class GraphParser:
 
                 if repo == other_repo and len(shared_classes) >= 2:
                     GraphParser.graph.add_edge(index, other_index, shared_classes=list(shared_classes))
-                    print(f"Added edge between {index} and {other_index} with shared classes: {shared_classes} (same repo)")
+                    # print(f"Added edge between {index} and {other_index} with shared classes: {shared_classes} (same repo)")
                 elif repo != other_repo and len(shared_classes) >= 3:
                     GraphParser.graph.add_edge(index, other_index, shared_classes=list(shared_classes))
-                    print(f"Added edge between {index} and {other_index} with shared classes: {shared_classes} (different repos)")
+                    # print(f"Added edge between {index} and {other_index} with shared classes: {shared_classes} (different repos)")
 
             pbar.update(1)
 
@@ -113,7 +113,7 @@ class GraphParser:
         GraphParser.extract_valid_keywords()
         GraphParser.create_label_dict()
         GraphParser.process_data(sample_percentage)
-        GraphParser.save_graph('keyword_graph_final.gml')
+        GraphParser.save_graph('graph_even_company.gml')
         print(f"Number of nodes: {GraphParser.graph.number_of_nodes()}")
         print(f"Number of edges: {GraphParser.graph.number_of_edges()}")
         return GraphParser.graph
