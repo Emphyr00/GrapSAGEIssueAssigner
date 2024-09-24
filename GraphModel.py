@@ -17,7 +17,6 @@ def load_graph_from_gml(file_path):
 def prepare_data(graph):
     data = from_networkx(graph)
 
-    # Ensure all keywords are properly processed as indices
     keywords_list = [node_data['keywords'] for _, node_data in graph.nodes(data=True)]
     unique_keywords = sorted(set(kw for kws in keywords_list for kw in kws))
     keyword_to_index = {kw: i for i, kw in enumerate(unique_keywords)}
@@ -27,7 +26,6 @@ def prepare_data(graph):
     keywords_padded = [kws + [0] * (max_keyword_length - len(kws)) for kws in keywords_indexed]
     data.x = torch.tensor(keywords_padded, dtype=torch.float)
 
-    # Set the label for each node based on the repo label
     data.y = torch.tensor([node_data['repo_label'] for _, node_data in graph.nodes(data=True)], dtype=torch.long)
     
     return data
@@ -80,7 +78,6 @@ def train_and_test(file_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GraphSAGE(data.num_features, 64, 128, len(data.y.unique())).to(device)
 
-    # Move data to device
     data = data.to(device)
     data.x = data.x.to(device)
     data.edge_index = data.edge_index.to(device)
@@ -115,7 +112,6 @@ def train_and_test(file_path):
             acc_exact = pred_exact.eq(data.y[mask]).sum().item() / mask.sum().item()
             accs_exact.append(acc_exact)
 
-            # Top 3 prediction
             top3_pred = logits[mask].topk(3, dim=1).indices
             correct_top3 = top3_pred.eq(data.y[mask].unsqueeze(1)).sum(1)
             acc_top3 = correct_top3.sum().item() / mask.sum().item()
@@ -202,7 +198,6 @@ def train_and_test(file_path):
     plt.savefig(f'{base_name}_accuracy_top3.png')
     plt.show()
 
-    # Save Confusion Matrix for Validation Set (Exact)
     cm_val_exact = confusion_matrix(val_targets, val_preds_exact)
     plt.figure(figsize=(8, 8))
     plt.imshow(cm_val_exact, cmap='Blues')
@@ -212,7 +207,6 @@ def train_and_test(file_path):
     plt.savefig(f'{base_name}_confusion_matrix_val_exact.png')
     plt.show()
 
-    # Save Confusion Matrix for Validation Set (Top3)
     cm_val_top3 = confusion_matrix(val_targets, [p[0] for p in val_preds_top3])  # Use first prediction for confusion matrix
     plt.figure(figsize=(8, 8))
     plt.imshow(cm_val_top3, cmap='Blues')
@@ -222,7 +216,6 @@ def train_and_test(file_path):
     plt.savefig(f'{base_name}_confusion_matrix_val_top3.png')
     plt.show()
 
-    # Save Confusion Matrix for Test Set (Exact)
     cm_test_exact = confusion_matrix(test_targets, test_preds_exact)
     plt.figure(figsize=(8, 8))
     plt.imshow(cm_test_exact, cmap='Blues')
@@ -232,7 +225,6 @@ def train_and_test(file_path):
     plt.savefig(f'{base_name}_confusion_matrix_test_exact.png')
     plt.show()
 
-    # Save Confusion Matrix for Test Set (Top3)
     cm_test_top3 = confusion_matrix(test_targets, [p[0] for p in test_preds_top3])  # Use first prediction for confusion matrix
     plt.figure(figsize=(8, 8))
     plt.imshow(cm_test_top3, cmap='Blues')
@@ -242,7 +234,6 @@ def train_and_test(file_path):
     plt.savefig(f'{base_name}_confusion_matrix_test_top3.png')
     plt.show()
 
-    # Additional Metrics
     f1_exact = f1_score(test_targets, test_preds_exact, average='weighted')
     precision_exact = precision_score(test_targets, test_preds_exact, average='weighted')
     recall_exact = recall_score(test_targets, test_preds_exact, average='weighted')
@@ -261,6 +252,3 @@ def train_and_test(file_path):
 
     print(f'Exact - F1 Score: {f1_exact:.4f}, Precision: {precision_exact:.4f}, Recall: {recall_exact:.4f}')
     print(f'Top3 - F1 Score: {f1_top3:.4f}, Precision: {precision_top3:.4f}, Recall: {recall_top3:.4f}')
-
-# Example usage:
-# train_and_test('keyword_graph_final4.gml')

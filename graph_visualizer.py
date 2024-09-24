@@ -2,7 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 # Load the graph from a GML file
-gml_file_path = 'graph_small_company.gml'  # replace with your GML file path
+gml_file_path = 'dataset_test.gml'  # replace with your GML file path
 G = nx.read_gml(gml_file_path)
 
 # Draw the graph

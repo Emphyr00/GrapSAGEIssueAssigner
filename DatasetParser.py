@@ -13,6 +13,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import ast
 import inflect
+from IPython.display import display
+import matplotlib.pyplot as plt
+from textwrap import wrap
 
 inflect_engine = inflect.engine()
 nlp = spacy.load('en_core_web_sm')
@@ -26,7 +29,7 @@ class DatasetParser:
         self.output_csv = output_csv
         self.df = None
         self.guess = Guess()
-        self.thresholds = thresholds  # List of arrays [number, lower_threshold, upper_threshold]
+        self.thresholds = thresholds 
 
     def create_csv(self, output_file=None):
         self.df.to_csv(output_file or self.output_csv, index=False, escapechar='\\')
@@ -35,7 +38,20 @@ class DatasetParser:
     def get_df(self):
         return self.df
 
-    def read_and_merge_parquet(self, size=1.0):
+    def display_sample(self, step_name, row_index=0, max_colwidth=30, max_lines_per_cell=5):
+        print(f"Sample data for row {row_index} after step: {step_name}")
+
+        if row_index >= len(self.df):
+            print(f"Error: The row_index {row_index} is out of range. Defaulting to row 0.")
+            row_index = 0
+        sample = self.df.iloc[[row_index]]  # Always take the same element
+
+        filename = f"{step_name}_row_{row_index}.csv"
+        sample.to_csv('datachange/' + filename, index=False)
+
+        print(f"Saved sample data to {filename}")
+        
+    def read_and_merge_parquet(self, size=1):
         print('read_and_merge_parquet')
         data_frames = []
         
@@ -55,6 +71,8 @@ class DatasetParser:
 
         self.df = pd.concat(data_frames, ignore_index=True)
         self.filter_repos_by_thresholds()
+        
+        self.display_sample("read_and_merge_parquet")
         return self
 
     def filter_repos_by_thresholds(self):
@@ -65,7 +83,6 @@ class DatasetParser:
             filtered_repos = repo_counts[(repo_counts >= lower_threshold) & (repo_counts <= upper_threshold)].index
             filtered_df = self.df[self.df['repo'].isin(filtered_repos)]
 
-            # Randomly select the specified number of repositories
             if len(filtered_repos) > number:
                 selected_repos = filtered_repos.to_series().sample(n=number, random_state=42).index
             else:
@@ -76,6 +93,8 @@ class DatasetParser:
 
         self.df = pd.concat(all_filtered_dfs, ignore_index=True)
         self.print_unique_repo_counts()
+
+        self.display_sample("filter_repos_by_thresholds")
 
     def print_unique_repo_counts(self):
         print("Unique repo values with their counts (sorted by number of samples, descending):")
@@ -109,6 +128,8 @@ class DatasetParser:
         tqdm.pandas(desc="Parsing Content")
         self.df[['extracted_content', 'code']] = self.df['content'].progress_apply(lambda text: pd.Series(self.clean_and_extract_content(text)))
         self.df = self.df[['repo', 'extracted_content', 'code']]
+        
+        self.display_sample("parse_content")
         return self
 
     def get_keywords_fasttext(self, text, model, top_n=5):
@@ -155,6 +176,8 @@ class DatasetParser:
         tqdm.pandas(desc="Extracting Keywords and Code")
         self.df['code_lang'] = self.df['code'].progress_apply(self.detect_language)
         self.df['keywords'] = self.df.progress_apply(lambda row: self.get_keywords_fasttext(row['extracted_content'], fasttext_model, top_n=5) + ([row['code_lang']] if row['code_lang'] != 'unknown' else []), axis=1)
+        
+        self.display_sample("extract_keywords_and_code")
         return self
 
     def count_code_langs(self):
@@ -206,6 +229,8 @@ class DatasetParser:
         relevant_classes = self.find_top_classes(top_n)
         self.add_class_column(relevant_classes)
         print(relevant_classes)
+
+        self.display_sample("extract_classes")
         return self
 
     def filter_by_class(self):
@@ -215,8 +240,13 @@ class DatasetParser:
         print('remove_elements_missing_class')
         self.filter_by_class()
         
+        self.display_sample("remove_elements_missing_class")
+        return self
+
     def prune_data(self):
         self.df = self.df.drop(columns=['code', 'extracted_content'])
+        
+        self.display_sample("prune_data")
         return self
 
     def load_csv(self, file_path, keywords_column='keywords'):
